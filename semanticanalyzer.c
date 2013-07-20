@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 struct prod
 {
@@ -15,23 +16,28 @@ struct node
     struct node *lchild;
     struct node *rchild;
     struct node *opr;
-	int visited;
-	int first;
-	int inh, syn, val;
+    int visited;
+    int first;
+    int inh, syn, val;
 };
 
-struct semantic
+struct semanticRule
 {
     char c;
     char *action;
     char *end;
 };
 
-struct node *mknode(char *, struct prod [], int);
-int treeDFS(struct node *, struct semantic []);
-void search(struct semantic [], char, struct node *);
+int treeDFS(struct node *, struct semanticRule []);
+void search(struct semanticRule [], char, struct node *);
 void delete(struct node **);
+void memberValueSet(struct node **, struct prod[], int, int);
 void grammar(struct prod []);
+void digitAlphaNode(int *, int *, int *, struct prod [], struct node **, struct node **, struct node **, struct node *, char);
+void openCloseBracketNodes(struct prod gram[], struct node *f, struct node **ob, struct node **cb);
+struct node * memoryAlloc();
+struct node * bracketOperationCall (struct prod [], char [], int *, int *);
+struct node *mknode(char *, struct prod [], int);
 
 int main()
 {
@@ -40,82 +46,80 @@ int main()
                            'T', "FQ", 0,
                            'Q', "*FQ|/FQ", 1,
                            'F', "d", 0,
-                           'F', "(E)", 0
-			};
-    struct semantic rule[11] = {'d', "F.val = id.lexval","",
-                               'F', "Q.inh = F.val","",
-                               '*', "Q1.inh = Q.inh * F.val","",
-                               '/', "Q1.inh = Q.inh / F.val","",
-							   '+', "P1.inh = P.inh + T.val","",
-                               '-', "P1.inh = P.inh - T.val","",
-							   'T', "P.inh = T.val","",
-                               'Q', "Q.syn = Q.inh","T.val = Q.syn",
-                               'P', "P.syn = P.inh","E.val = P.syn",
-							   'E', "L.val = E.val","",
-			  			       ')', "F.val = E.val", ""
-			  				  };
+                           'F', "(E)", 0};
 
+    struct semanticRule rules[11] = {'d', "F.val = id.lexval","",
+                                     'F', "Q.inh = F.val","",
+                                     '*', "Q1.inh = Q.inh * F.val","",
+                                     '/', "Q1.inh = Q.inh / F.val","",
+                                     '+', "P1.inh = P.inh + T.val","",
+                                     '-', "P1.inh = P.inh - T.val","",
+                                     'T', "P.inh = T.val","",
+                                     'Q', "Q.syn = Q.inh","T.val = Q.syn",
+                                     'P', "P.syn = P.inh","E.val = P.syn",
+                                     'E', "L.val = E.val","",
+                                     ')', "F.val = E.val", ""};
     struct node *S = NULL;
     char expr[10] = "";
     int ch, choice = 0;
 
-    do {
-
-    printf("\n\nEnter your choice:\n1. Display the grammar\n2. Enter an expression\n3. Display the parse tree\n4. Display the semantic rule\n5. Delete the Parse Tree\n6. Help\n7. About the developers\n8. Quit\n\nChoice: ");
-    scanf("%d", &ch);
-
-    switch (ch)
+    do
     {
-        case 1: grammar(gram);
-                break;
+        printf("\n\nEnter your choice:\n1. Display the grammar\n2. Enter an expression\n3. Display the parse tree\n4. Display the semantic rule\n5. Delete the Parse Tree\n6. Help\n7. About the developers\n8. Quit\n\nChoice: ");
+        scanf("%d", &ch);
 
-        case 2: printf("\nEnter the expression: ");
-                scanf("%s", expr);
-                printf("\n\nFollow this sequence to generate the parse tree...\n");
-                if (S)
-                    delete(&S);
-                S = mknode(expr, gram, 0);
-                break;
+        switch (ch)
+        {
+            case 1: grammar(gram);
+                    break;
 
-        case 3: if (S)
-                {
-                    delete(&S);
+            case 2: printf("\nEnter the expression: ");
+                    scanf("%s", expr);
+                    printf("\n\nFollow this sequence to generate the parse tree...\n");
+                    if (S)
+                        delete(&S);
                     S = mknode(expr, gram, 0);
-                }
-                else
-                    printf("No parse tree exist\n");
+                    break;
 
-                break;
+            case 3: if (S)
+                    {
+                        delete(&S);
+                        S = mknode(expr, gram, 0);
+                    }
+                    else
+                        printf("No parse tree exist\n");
+                    break;
 
-        case 4: if (S)
-                {
-                     printf("\n\nDisplaying Semantic Rule for each node\n");
-                     treeDFS(S, rule);
-                }
-                else
-                    printf("Semantic rule needs a parse tree\n");
-                break;
+            case 4: if (S)
+                    {
+                        printf("\n\nDisplaying Semantic Rule for each node\n");
+                        treeDFS(S, rules);
+                    }
+                    else
+                        printf("Semantic rule needs a parse tree\n");
+                    break;
+ 
+            case 5: if(S)
+                    {
+                        printf("Deleting the parse tree..\n");
+                        delete(&S);
+                    }
+                    else
+                        printf("Parse tree does not exist\n");
+                    break;
 
-        case 5: if(S)
-                {
-                    printf("Deleting the parse tree..\n");
-                    delete(&S);
-                }
-                else
-                    printf("Parse tree does not exist\n");
-                break;
+            case 6: printf("The user should enter a mathematical expression using the operators *, /, +, -, ( and ). The program will generate a parse tree. The user has to follow step-by-step with a pen and paper to see the parse tree. After the parse tree is generated, the program finds the semantic rules that will be applied to each node in the parse tree by using DFS traversal.\n");
+                    break;
 
-        case 6: printf("The user should enter a mathematical expression using the operators *, /, +, -, ( and ). The program will generate a parse tree. The user has to follow step-by-step with a pen and paper to see the parse tree. After the parse tree is generated, the program finds the semantic rules that will be applied to each node in the parse tree by using DFS traversal.\n");
-                break;
+            case 7: printf("Developed by:\n1) Sujaya A. Maiya - 1PI10IS106\n2) Prasoon Telang = 1PI10IS113\n3) Vivek Agarwal - 1PI10IS120\nVth-B\nSemantic Analyzer of a Compiler\n");
+                    break;
 
-        case 7: printf("Developed by:\n1) Sujaya A. Maiya - 1PI10IS106\n2) Prasoon Telang = 1PI10IS113\n3) Vivek Agarwal - 1PI10IS120\nVth-B\nSemantic Analyzer of a Compiler\n");
-                break;
-
-        case 8: printf("Are you sure you want to QUIT? [1/0]\n");
-                scanf("%d", &choice);
-       }
+            case 8: printf("Are you sure you want to QUIT? [1/0]\n");
+                    scanf("%d", &choice);
+        }
     }while(choice != 1);
     printf("PROGRAM TERMINATED\n");
+
     return 0;
 }
 
@@ -133,35 +137,42 @@ void grammar(struct prod gram[])
     }
     printf("\n");
 }
+
+struct node * memoryAlloc()
+{
+    return (struct node *)malloc(sizeof(struct node));
+}
+
 struct node* mknode(char *expr, struct prod gram[], int flag)
 {
     struct node *t, *p, *f, *q, *id, *e, *temp, *ob, *cb;
     t = p = f = q = id = e = temp = ob = cb = NULL;
-    int count = 0;
-    int dflag = 0;
-    int oflag = 0;
+    int countOfOperands = 0;
+    int digitFlag = 0;
+    int operatorFlag = 0;
    
-    e = (struct node *)malloc(sizeof(struct node));
+    e = memoryAlloc();
     e->c = gram[0].left;
     e->first = 0;
     if (flag == 0)
     {
-        e->first =1;
+        e->first = 1;
         flag = 1;
     }
 
     e->opr = e->rchild = e->lchild = NULL;
         
-    p = (struct node *)malloc(sizeof(struct node));
+    p = memoryAlloc();
     p->c = gram[0].right[1];
     e->rchild = p;
     p->opr = p->lchild = p->rchild = NULL;
     p->first = 1;
         
-    t = (struct node *)malloc(sizeof(struct node));
+    t = memoryAlloc();
     t->c = gram[0].right[0];
     e->lchild = t;
     t->opr = t->lchild = t->rchild = NULL;
+
     printf("%c -> %c%c\n", e->c, t->c, p->c);
 
     int i, j;
@@ -169,180 +180,76 @@ struct node* mknode(char *expr, struct prod gram[], int flag)
     for(i = 0; i < strlen(expr); i++)
     {
         if(isdigit(expr[i]) || isalpha(expr[i]))
-        count++;
+        countOfOperands++;
     }
     i = 0;
     ch = expr[i++];
     if (ch == '(')
     {
-        f = (struct node *)malloc(sizeof(struct node));
+        f = memoryAlloc();
         t->lchild = f;
-        f->c = gram[2].right[0];
-        f->rchild = f->lchild = f->opr = NULL;
-        f->val = 0;
+        memberValueSet(&f, gram, 2, 0);
 
-        q = (struct node *)malloc(sizeof(struct node));
+        q = memoryAlloc();
         t->rchild = q;
         q->first = 1;
-        q->c = gram[2].right[1];
-        q->rchild = q->lchild = q->opr = NULL;
-        q->val = 0;
+        memberValueSet(&q, gram, 2, 1);
+
         printf("%c -> %c%c\n", t->c, f->c, q->c);
-
-        ob = (struct node *)malloc(sizeof(struct node));
-        f->lchild = ob;
-        ob->c = gram[5].right[0];
-        ob->val = 0;
-        ob->opr = ob->lchild = ob->rchild = NULL;
-
-        cb = (struct node *)malloc(sizeof(struct node));
-        f->rchild = cb;
-        cb->c = gram[5].right[2];
-        cb->val = 0;
-        cb->opr = cb->lchild = cb->rchild = NULL;
-
+        openCloseBracketNodes(gram, f, &ob, &cb);
         printf("%c -> %c%c%c\n", f->c, ob->c, 'E', cb->c);
-
-        int j = i, k = 0;
-        char b_expr[20];
-        int ob_count = 0;
-        int prev_count = count;
-        while (expr[j] != ')' || ob_count)
-        {
-            b_expr[k++] = expr[j++];
-            if(b_expr[k-1] == '(')
-                ob_count++;
-            else if(b_expr[k-1] == ')')
-                ob_count--;
-            else if(isdigit(b_expr[k-1]) || isalpha(b_expr[k-1]))
-                count--;
-        }
-        if (ob_count || prev_count == count)
-        {
-            printf("Invalid ( or content inside () missing\nTry Again\n");
-            return NULL;
-        }
-        b_expr[k] = '\0';
-        f->opr = mknode(b_expr, gram, flag);
-        i = ++j;
+        f->opr = bracketOperationCall(gram, expr, &i, &countOfOperands);
         ch = expr[i++];
     }         
-    while (count)
+    while (countOfOperands)
     {
         if (ch != '+' && ch != '-' && ch != '*' && ch != '/' && !isdigit(ch) && !isalpha(ch))
         {
-            printf("Invalid Character\nTry Again\n");
+            printf("Invalid Character: %c\nTry Again\n", ch);
             return NULL;
         }
         if (isdigit(ch) || isalpha(ch))
         {
-            if (!dflag)
-            {
-                dflag = 1;
-                oflag = 0;
-            }
-            else if (dflag)
-            {
-                printf("Use of multiple digit\nTry Again\n");
-                return NULL;
-            }
-            count--;
-            f = (struct node *)malloc(sizeof(struct node));
-            t->lchild = f;
-            f->c = gram[2].right[0];
-            f->rchild = f->opr = f->lchild = NULL;
-            f->val = 0;
-
-            id = (struct node *)malloc(sizeof(struct node));
-            f->opr = id;
-            id->opr = id->lchild = id->rchild = NULL;
-            id->c = ch;
-            id->val = ch - '0';
-
-            q = (struct node *)malloc(sizeof(struct node));
-            t->rchild = q;
-            q->first = 1;
-            q->c = gram[2].right[1];
-            q->rchild = q->lchild = q->opr = NULL;
-            q->val = 0;
-            printf("%c -> %c%c\n", t->c, f->c, q->c);
-            printf("%c -> %c\n", f->c, id->c);
-
+            digitAlphaNode(&digitFlag, &operatorFlag, &countOfOperands, gram, &f, &id, &q, t, ch);
             ch = expr[i++];
         }
         else if (ch == '+' || ch == '-')
         {
-            if (!oflag)
+            if (!operatorFlag)
             {
-                dflag = 0;
-                oflag = 1;
+                digitFlag = 0;
+                operatorFlag = 1;
             }
-            else if (oflag)
+            else if (operatorFlag)
             {
                 printf("Invalid use of +/-\nTry Again\n");
                 return NULL;
             }
 
-            t = (struct node *)malloc(sizeof(struct node));
+            t = memoryAlloc();
             p->lchild = t;
-            t->c = gram[1].right[1];
-            t->rchild = t->lchild = t->opr = NULL;
-            t->val = 0;
+            memberValueSet(&t, gram, 1, 1);
 
-            id = (struct node *)malloc(sizeof(struct node));
+            id = memoryAlloc();
             p->opr = id;
             id->opr = id->lchild = id->rchild = NULL;
             id->c = ch;
 
             temp = p;
-            p = (struct node *)malloc(sizeof(struct node));
+            p = memoryAlloc();
             temp->rchild = p;
             p->first = 0;
-            p->c = gram[1].right[2];
-            p->rchild = p->lchild = p->opr = NULL;
-            p->val = 0;
+            memberValueSet(&p, gram, 1, 2);
 
             if (q->rchild == NULL && q->lchild == NULL && q->opr == NULL)
                   printf("%c -> ϵ\n", q->c);
-
 
             printf("%c -> %c%c%c\n", temp->c, id->c, t->c, p->c);
 
             ch = expr[i++];
             if (isdigit(ch) || isalpha(ch))
             {
-                if (!dflag)
-                {
-                    dflag = 1;
-                    oflag = 0;
-                }
-                else if (dflag)
-                {
-                    printf("Use of multiple digit\nTry Again\n");
-                    return NULL;
-                }
-                count--;
-                f = (struct node *)malloc(sizeof(struct node));
-                t->lchild = f;
-                f->c = gram[2].right[0];
-                f->rchild = f->opr = f->lchild = NULL;
-                f->val = 0;
-
-                id = (struct node *)malloc(sizeof(struct node));
-                f->opr = id;
-                id->opr = id->lchild = id->rchild = NULL;
-                id->c = ch;
-                id->val = ch - '0';
-
-                q = (struct node *)malloc(sizeof(struct node));
-                t->rchild = q;
-                q->first = 1;
-                q->c = gram[2].right[1];
-                q->rchild = q->lchild = q->opr = NULL;
-                q->val = 0;
-                printf("%c -> %c%c\n", t->c, f->c, q->c);
-                printf("%c -> %c\n", f->c, id->c);
-
+                digitAlphaNode(&digitFlag, &operatorFlag, &countOfOperands, gram, &f, &id, &q, t, ch);
                 ch = expr[i++];
             }
             else if (ch == ')')
@@ -352,110 +259,75 @@ struct node* mknode(char *expr, struct prod gram[], int flag)
             }
             else if (ch == '(')
             {
-                f = (struct node *)malloc(sizeof(struct node));
+                f = memoryAlloc();
                 t->lchild = f;
-                f->c = gram[2].right[0];
-                f->rchild = f->lchild = f->opr = NULL;
-                f->val = 0;
+                memberValueSet(&f, gram, 2, 0);
 
-                q = (struct node *)malloc(sizeof(struct node));
+                q = memoryAlloc();
                 t->rchild = q;
                 q->first = 1;
-                q->c = gram[2].right[1];
-                q->rchild = q->lchild = q->opr = NULL;
-                q->val = 0;
+                memberValueSet(&q, gram, 2, 1);
                 printf("%c -> %c%c\n", t->c, f->c, q->c);
 
-                ob = (struct node *)malloc(sizeof(struct node));
-                f->lchild = ob;
-                ob->c = gram[5].right[0];
-                ob->val = 0;
-                ob->opr = ob->lchild = ob->rchild = NULL;
-
-                cb = (struct node *)malloc(sizeof(struct node));
-                f->rchild = cb;
-                cb->c = gram[5].right[2];
-                cb->val = 0;
-                cb->opr = cb->lchild = cb->rchild = NULL;
+                openCloseBracketNodes(gram, f, &ob, &cb);
 
                 printf("%c -> %c%c%c\n", f->c, ob->c, 'E', cb->c);
 
-                int j = i, k = 0;
-                char b_expr[20];
-                int ob_count = 0;
-                int prev_count = count;
-                while (expr[j] != ')' || ob_count)
-                {
-                    b_expr[k++] = expr[j++];
-                    if(b_expr[k-1] == '(')
-                        ob_count++;
-                    else if(b_expr[k-1] == ')')
-                        ob_count--;
-                    else if(isdigit(b_expr[k-1]) || isalpha(b_expr[k-1]))
-                        count--;
-                }
-                if (ob_count || prev_count == count)
-                {
-                     printf("Invalid ) or content inside () missing\nTry Again\n");
-                     return NULL;
-                }
-                b_expr[k] = '\0';
-                f->opr = mknode(b_expr, gram, flag);
+                f->opr = bracketOperationCall(gram, expr, &i, &countOfOperands);
+                ch = expr[i++];
             }
          }
          else if (ch == '*' || ch == '/')
          {
-             if (!oflag)
+             if (!operatorFlag)
              {
-                 dflag = 0;
-                 oflag = 1;
+                 digitFlag = 0;
+                 operatorFlag = 1;
              }
-             else if (oflag)
+             else if (operatorFlag)
              {
                  printf("Invalid */-\nTry Again\n");
                  return NULL;
              }
-             f = (struct node *)malloc(sizeof(struct node));
+             f = memoryAlloc();
              q->lchild = f;
-             f->c = gram[3].right[1];
-             f->rchild = f->lchild = f->opr = NULL;
-             f->val = 0;
+             memberValueSet(&f, gram, 3, 1);
 
-             id = (struct node *)malloc(sizeof(struct node));
+             id = memoryAlloc();
              q->opr = id;
              id->c = ch;
              id->val = 0;
              id->rchild = id->lchild = id->opr = NULL;
 
              temp = q;
-             q = (struct node *)malloc(sizeof(struct node));
+             q = memoryAlloc();
              q->first = 0;
              temp->rchild = q;
-             q->c = gram[3].right[2];
-             q->rchild = q->lchild = q->opr = NULL;
-             q->val = 0;
+             memberValueSet(&q, gram, 3, 2);
 
              printf("%c -> %c%c%c\n", temp->c, id->c, f->c, q->c);
 
              ch = expr[i++];
              if (isdigit(ch) || isalpha(ch))
              {
-                 if (!dflag)
+                 /*case of digits and alphabets only*/
+                 if (!digitFlag)
                  {
-                     dflag = 1;
-                     oflag = 0;
+                     digitFlag = 1;
+                     operatorFlag = 0;
                  }
-                 else if (dflag)
+                 else if (digitFlag)
                  {
                     printf("Use of multiple digit\nTry Again\n");
                     return NULL;
                  }
-                 id = (struct node *)malloc(sizeof(struct node));
+                 id = memoryAlloc();
                  f->opr = id;
                  id->c = ch;
                  id->val = ch - '0';
                  id->opr = id->lchild = id->rchild = NULL;
-                 count--;
+
+                 countOfOperands--;
                  printf("%c -> %c\n", f->c, id->c);
                  ch = expr[i++];
              }
@@ -466,40 +338,12 @@ struct node* mknode(char *expr, struct prod gram[], int flag)
              }
              else if (ch == '(')
              {
-                 ob = (struct node *)malloc(sizeof(struct node));
-                 f->lchild = ob;
-                 ob->c = gram[5].right[0];
-                 ob->val = 0;
-                 ob->opr = ob->lchild = ob->rchild = NULL;
-
-                 cb = (struct node *)malloc(sizeof(struct node));
-                 f->rchild = cb;
-                 cb->c = gram[5].right[2];
-                 cb->val = 0;
-                 cb->opr = cb->lchild = cb->rchild = NULL;
+                 openCloseBracketNodes(gram, f, &ob, &cb);
 
                  printf("%c -> %c%c%c\n", f->c, ob->c, 'E', cb->c);
 
-                 int j = i, k = 0, ob_count = 0;
-                 char b_expr[20];
-                 int prev_count = count;
-                 while (expr[j] != ')' || ob_count)
-                 {
-                     b_expr[k++] = expr[j++];
-                     if(b_expr[k-1] == '(')
-                         ob_count++;
-                     else if(b_expr[k-1] == ')')
-                         ob_count--;
-                     else if(isdigit(b_expr[k-1]) || isalpha(b_expr[k-1]))
-                         count--;
-                 }
-                 if (ob_count || prev_count == count)
-                 {
-                     printf("Invalid ) or content inside () missing\nTry Again\n");
-                      return NULL;
-                 }
-                 b_expr[k] = '\0';
-                 f->opr = mknode(b_expr, gram, flag);
+                 f->opr = bracketOperationCall(gram, expr, &i, &countOfOperands);
+                 ch = expr[i++];
             }
          }
      }
@@ -513,54 +357,125 @@ struct node* mknode(char *expr, struct prod gram[], int flag)
 
      return e;
 }
-int treeDFS(struct node *root, struct semantic rule[])
+
+void digitAlphaNode(int *digitFlag, int *operatorFlag, int *countOfOperands, struct prod gram[],
+                    struct node **f, struct node **id, struct node **q, struct node *t,
+                    char ch)
+{
+    if (!(*digitFlag))
+    {
+        (*digitFlag) = 1;
+        (*operatorFlag) = 0;
+    }
+    else if ((*digitFlag))
+    {
+        printf("Use of multiple digit\nTry Again\n");
+        return;
+    }
+    (*countOfOperands)--;
+    *f = memoryAlloc();
+    t->lchild = *f;
+    memberValueSet(&(*f), gram, 2, 0);
+
+    *id = memoryAlloc();
+    (*f)->opr = *id;
+    (*id)->opr = (*id)->lchild = (*id)->rchild = NULL;
+    (*id)->c = ch;
+    (*id)->val = ch - '0';
+
+    (*q) = memoryAlloc();
+    t->rchild = (*q);
+    (*q)->first = 1;
+    memberValueSet(&(*q), gram, 2, 1);
+
+    printf("%c -> %c%c\n", t->c, (*f)->c, (*q)->c);
+    printf("%c -> %c\n", (*f)->c, (*id)->c);
+}
+
+void openCloseBracketNodes(struct prod gram[], struct node *f, struct node **ob, struct node **cb)
+{
+    (*ob) = memoryAlloc();
+    f->lchild = (*ob);
+    memberValueSet(&(*ob), gram, 5, 0);
+
+    (*cb) = memoryAlloc();
+    f->rchild = (*cb);
+    memberValueSet(&(*cb), gram, 5, 2);
+}
+
+struct node * bracketOperationCall (struct prod gram[], char expr[], int *i, int *countOfOperands)
+{
+    int j = *i, k = 0, ob_count = 0;
+    char b_expr[20];
+    int prev_count = *countOfOperands;
+
+    while (expr[j] != ')' || ob_count)
+    {
+        b_expr[k++] = expr[j++];
+        if(b_expr[k-1] == '(')
+            ob_count++;
+        else if(b_expr[k-1] == ')')
+            ob_count--;
+        else if(isdigit(b_expr[k-1]) || isalpha(b_expr[k-1]))
+            (*countOfOperands)--;
+    }
+    if (ob_count || prev_count == *countOfOperands)
+    {
+         printf("Invalid ) or content inside () missing\nTry Again\n");
+         return NULL;
+    }
+    b_expr[k] = '\0';
+    (*i) = ++j;
+
+    return mknode(b_expr, gram, 1);
+}
+
+void memberValueSet(struct node **tempNode, struct prod gram[], int m, int n)
+{
+    (*tempNode)->c = gram[m].right[n];
+    (*tempNode)->rchild = (*tempNode)->lchild = (*tempNode)->opr = NULL;
+    (*tempNode)->val = 0;
+}
+
+int treeDFS(struct node *root, struct semanticRule rules[])
 {
     char *str;
     root->visited = 1;
 
     if (root->lchild)
-    {
         if(root->lchild->visited == 0)
-        {
-            treeDFS(root->lchild, rule);
-        }
-    }
+            treeDFS(root->lchild, rules);
 
     if (root->opr)
-    {
         if(root->opr->visited == 0)
-        {
-            treeDFS(root->opr, rule);
-        }
-    }
+            treeDFS(root->opr, rules);
+
     if (root->rchild)
-    {
         if(root->rchild->visited == 0)
-        {
-            treeDFS(root->rchild, rule);
-        }
-    }
+            treeDFS(root->rchild, rules);
+
     printf("[%c]\n", root->c);
-    search(rule, root->c, root);
+    search(rules, root->c, root);
     root->visited = 0;
 }
 
-void search(struct semantic rule[], char a, struct node *root)
+void search(struct semanticRule rules[], char a, struct node *root)
 {
     int i;
+
     for (i = 0; i < 11; i++)
     {
         if (isdigit(a))
             a = 'd';
-        else if (a > 96 && a < 122)
+        else if (islower(a))
             a = 'd';
-		if (rule[i].c == 'E' && !root->first)
-            break;
-        if (rule[i].c == a)
+        if (rules[i].c == 'E' && !root->first)
+            return;
+        if (rules[i].c == a)
         {
-            printf("%s\n", rule[i].action);
-			if (root->first == 1)
-				printf("%s\n", rule[i].end);
+            printf("%s\n", rules[i].action);
+            if (root->first == 1)
+                printf("%s\n", rules[i].end);
             printf("\n");
             return;
         }
@@ -570,17 +485,11 @@ void search(struct semantic rule[], char a, struct node *root)
 void delete (struct node **root)
 {
     if ((*root)->lchild)
-    {
-            delete(&(*root)->lchild);
-    }
+        delete(&(*root)->lchild);
     if ((*root)->opr)
-    {
-            delete(&(*root)->opr);
-    }
+        delete(&(*root)->opr);
     if ((*root)->rchild)
-    {
-            delete(&(*root)->rchild);
-    }
+        delete(&(*root)->rchild);
 
     free(*root);
     *root = NULL;
