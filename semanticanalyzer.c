@@ -10,6 +10,12 @@ struct prod
     int end;
 };
 
+struct queue
+{
+    struct node *nodeptr;
+    struct queue *next;
+};
+
 struct node
 {
     char c;
@@ -28,6 +34,7 @@ struct semanticRule
     char *end;
 };
 
+void createlistbfs(struct node *);
 int treeDFS(struct node *, struct semanticRule []);
 void search(struct semanticRule [], char, struct node *);
 void delete(struct node **);
@@ -83,8 +90,7 @@ int main()
 
             case 3: if (S)
                     {
-                        delete(&S);
-                        S = mknode(expr, gram, 0);
+                        createlistbfs(S);
                     }
                     else
                         printf("No parse tree exist\n");
@@ -479,6 +485,51 @@ void search(struct semanticRule rules[], char a, struct node *root)
             printf("\n");
             return;
         }
+    }
+}
+
+void createlistbfs(struct node *root)
+{
+    struct queue *qhead, *qrear, *qtemp, *qrelease;
+
+    if (root == NULL)
+    {
+        return;
+    }
+    qhead = (struct queue *)malloc(sizeof(struct queue));
+    qhead->nodeptr = root;
+    qhead->next = NULL;
+    qrear = qhead;
+    while (qhead != NULL)
+    {
+        printf("%c  ", qhead->nodeptr->c);
+        if (qhead->nodeptr->opr != NULL)
+        {
+            qtemp = (struct queue *)malloc(sizeof(struct queue));
+            qtemp->nodeptr = qhead->nodeptr->opr;
+            qtemp->next = NULL;
+            qrear->next = qtemp;
+            qrear = qtemp;
+        }
+        if (qhead->nodeptr->lchild != NULL)
+        {
+            qtemp = (struct queue *)malloc(sizeof(struct queue));
+            qtemp->nodeptr = qhead->nodeptr->lchild;
+            qtemp->next = NULL;
+            qrear->next = qtemp;
+            qrear = qtemp;
+        }
+        if (qhead->nodeptr->rchild != NULL)
+        {
+            qtemp = (struct queue *)malloc(sizeof(struct queue));
+            qtemp->nodeptr = qhead->nodeptr->rchild;
+            qtemp->next = NULL;
+            qrear->next = qtemp;
+            qrear = qtemp;
+        }
+        qrelease = qhead;
+        qhead = qhead->next;
+        free(qrelease);
     }
 }
 
