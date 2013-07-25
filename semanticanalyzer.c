@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <ctype.h>
 
+#define memoryAlloc() (struct node *)malloc(sizeof(struct node));
+
 struct prod
 {
     char left;
@@ -42,12 +44,12 @@ void memberValueSet(struct node **, struct prod[], int, int);
 void grammar(struct prod []);
 void digitAlphaNode(int *, int *, int *, struct prod [], struct node **, struct node **, struct node **, struct node *, char);
 void openCloseBracketNodes(struct prod gram[], struct node *f, struct node **ob, struct node **cb);
-struct node * memoryAlloc();
 struct node * bracketOperationCall (struct prod [], char [], int *, int *);
 struct node *mknode(char *, struct prod [], int);
 
 int main()
 {
+    /*The grammar we will use for creating parse tree*/
     struct prod gram[6] = {'E', "TP", 0, 
                            'P', "+TP|-TP", 1,
                            'T', "FQ", 0,
@@ -55,6 +57,7 @@ int main()
                            'F', "d", 0,
                            'F', "(E)", 0};
 
+    /*The semantic rules for a desktop calculator*/
     struct semanticRule rules[11] = {'d', "F.val = id.lexval","",
                                      'F', "Q.inh = F.val","",
                                      '*', "Q1.inh = Q.inh * F.val","",
@@ -66,13 +69,15 @@ int main()
                                      'P', "P.syn = P.inh","E.val = P.syn",
                                      'E', "L.val = E.val","",
                                      ')', "F.val = E.val", ""};
-    struct node *S = NULL;
-    char expr[10] = "";
+    struct node *parseTree = NULL;
+    char expr[30] = "";
     int ch, choice = 0;
 
     do
     {
-        printf("\n\nEnter your choice:\n1. Display the grammar\n2. Enter an expression\n3. Display the parse tree\n4. Display the semantic rule\n5. Delete the Parse Tree\n6. Help\n7. About the developers\n8. Quit\n\nChoice: ");
+        printf("\n\nEnter your choice:\n1. Display the grammar\n2. Enter an expression\n"
+               "3. Display the parse tree\n4. Display the semantic rule\n5. Delete the Parse Tree\n"
+               "6. Help\n7. About the developers\n8. Quit\n\nChoice: ");
         scanf("%d", &ch);
 
         switch (ch)
@@ -83,41 +88,47 @@ int main()
             case 2: printf("\nEnter the expression: ");
                     scanf("%s", expr);
                     printf("\n\nFollow this sequence to generate the parse tree...\n");
-                    if (S)
-                        delete(&S);
-                    S = mknode(expr, gram, 0);
+                    if (parseTree)
+                        delete(&parseTree);
+                    parseTree = mknode(expr, gram, 0);
                     break;
 
-            case 3: if (S)
-                    {
-                        createlistbfs(S);
-                    }
+            case 3: if (parseTree)
+                        createlistbfs(parseTree);
                     else
                         printf("No parse tree exist\n");
                     break;
 
-            case 4: if (S)
+            case 4: if (parseTree)
                     {
                         printf("\n\nDisplaying Semantic Rule for each node\n");
-                        treeDFS(S, rules);
+                        treeDFS(parseTree, rules);
                     }
                     else
+                    {
                         printf("Semantic rule needs a parse tree\n");
+                    }
                     break;
  
-            case 5: if(S)
+            case 5: if(parseTree)
                     {
                         printf("Deleting the parse tree..\n");
-                        delete(&S);
+                        delete(&parseTree);
                     }
                     else
+                    {
                         printf("Parse tree does not exist\n");
+                    }
                     break;
 
-            case 6: printf("The user should enter a mathematical expression using the operators *, /, +, -, ( and ). The program will generate a parse tree. The user has to follow step-by-step with a pen and paper to see the parse tree. After the parse tree is generated, the program finds the semantic rules that will be applied to each node in the parse tree by using DFS traversal.\n");
+            case 6: printf("The user should enter a mathematical expression using the operators *, /, +, -, ( and )."
+                           "The program will generate a parse tree. The user has to follow step-by-step with a pen "
+                           "and paper to see the parse tree. After the parse tree is generated, the program finds the"
+                           " semantic rules that will be applied to each node in the parse tree by using DFS traversal.\n");
                     break;
 
-            case 7: printf("Developed by:\n1) Sujaya A. Maiya - 1PI10IS106\n2) Prasoon Telang = 1PI10IS113\n3) Vivek Agarwal - 1PI10IS120\nVth-B\nSemantic Analyzer of a Compiler\n");
+            case 7: printf("Developed by:\n1) Sujaya A. Maiya - 1PI10IS106\n2) Prasoon Telang = 1PI10IS113\n"
+                           "3) Vivek Agarwal - 1PI10IS120\nVth-B\nSemantic Analyzer of a Compiler\n");
                     break;
 
             case 8: printf("Are you sure you want to QUIT? [1/0]\n");
@@ -144,18 +155,25 @@ void grammar(struct prod gram[])
     printf("\n");
 }
 
-struct node * memoryAlloc()
-{
-    return (struct node *)malloc(sizeof(struct node));
-}
-
 struct node* mknode(char *expr, struct prod gram[], int flag)
 {
     struct node *t, *p, *f, *q, *id, *e, *temp, *ob, *cb;
+    /*
+     * The pointers will point to their respective nodes
+     * t will point to nodes in grammar that uses T
+     * p will point to nodes in grammar that uses P
+     * f will point to nodes in grammar that uses F
+     * and so on..
+     */
     t = p = f = q = id = e = temp = ob = cb = NULL;
     int countOfOperands = 0;
     int digitFlag = 0;
     int operatorFlag = 0;
+    /*
+     * The purpose of operatorFlag and digitFlag is to prevent
+     * multiple operands or operators consecutively which the
+     * project doesn't support
+     */
    
     e = memoryAlloc();
     e->c = gram[0].left;
